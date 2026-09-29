@@ -1,0 +1,16 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.5.14/schema.json",
+  "root": true,
+  "files": {
+    "includes": [
+      "**",
+      "!!worker-configuration.d.ts",
+      "!!pnpm-lock.yaml",
+      "!!public/vendor",
+      "!!.wrangler"
+    ]
+  },
+  "formatter": { "indentStyle": "space", "indentWidth": 2 },
+  "linter": { "rules": { "preset": "recommended" } },
+  "assist": { "actions": { "source": { "organizeImports": "on" } } }
+}

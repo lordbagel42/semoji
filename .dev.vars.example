@@ -1,0 +1,6 @@
+# Use distinct randomly generated values of at least 32 characters. Never commit .dev.vars.
+READ_TOKEN=
+INDEXER_TOKEN=
+ADMIN_TOKEN=
+SLACK_BOT_TOKEN=
+SLACK_SIGNING_SECRET=

@@ -1,0 +1,44 @@
+name: Emoji catalogue maintenance
+
+on:
+  schedule:
+    - cron: '7,22,37,52 * * * *'
+  workflow_dispatch:
+    inputs:
+      embedding_batches:
+        description: 'Bounded Worker embedding batches (1–10000; no Codex inference)'
+        default: '120'
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: emoji-catalogue-production
+  cancel-in-progress: false
+
+jobs:
+  maintain:
+    if: github.repository == 'lordbagel42/semoji' && vars.EMOJI_MAINTENANCE_ENABLED == 'true'
+    runs-on: ubuntu-24.04
+    container: node:24.21.0-trixie@sha256:be40f6a87b9b22215ddb20da0a2320a5c6d583fe3ee3b0024d9fa4f05b40c8fd
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Install pinned dependencies
+        run: |
+          corepack prepare pnpm@10.33.0 --activate
+          corepack pnpm install --frozen-lockfile --ignore-scripts
+      - name: Reconcile catalogue metadata
+        env:
+          EMOJI_DATABASE_URL: ${{ secrets.EMOJI_DATABASE_URL }}
+          SLACK_BOT_TOKEN: ${{ secrets.EMOJI_SLACK_BOT_TOKEN }}
+        run: corepack pnpm maintenance sync
+      - name: Drain a bounded embedding backlog through Workers
+        env:
+          EMOJI_DATABASE_URL: ${{ secrets.EMOJI_DATABASE_URL }}
+          EMOJI_ADMIN_TOKEN: ${{ secrets.EMOJI_ADMIN_TOKEN }}
+          EMBEDDING_BATCHES: ${{ inputs.embedding_batches || '120' }}
+        run: corepack pnpm maintenance embeddings --embedding-batches "$EMBEDDING_BATCHES"

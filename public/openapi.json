@@ -1,0 +1,246 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "semoji",
+    "version": "1.0.0",
+    "description": "Find Hack Club Slack emoji by name, appearance, emotion or meaning. Public, read-only search: no token required. [Dashboard](/dashboard) · [Source and setup](https://github.com/lordbagel42/semoji). All public search responses include Access-Control-Allow-Origin: *. Rate limiting is best-effort: 60 requests per minute per IP per Cloudflare location, not a globally coordinated budget. Slow AI has a 150 ms wait budget; database and network time are additional, so no response latency is promised. An empty vector index is unavailable; a partial embedding backlog may remain even when semantic search is available."
+  },
+  "servers": [{ "url": "/", "description": "This semoji instance" }],
+  "security": [],
+  "paths": {
+    "/v1/emoji": {
+      "get": {
+        "operationId": "findEmoji",
+        "summary": "Get one Slack emoji name",
+        "description": "Returns one plain-text Slack emoji name without colons. Exact names or shortcodes use one database lookup without AI; otherwise keyword/semantic ranking selects a result.",
+        "parameters": [{ "$ref": "#/components/parameters/Query" }],
+        "responses": {
+          "200": {
+            "description": "One emoji name, without surrounding colons.",
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "$ref": "#/components/headers/Cors"
+              }
+            },
+            "content": {
+              "text/plain": {
+                "schema": { "type": "string" },
+                "example": "party-parrot"
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/InvalidRequest" },
+          "404": {
+            "description": "No matching emoji.",
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "$ref": "#/components/headers/Cors"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": { "error": "no_match" }
+              }
+            }
+          },
+          "405": { "$ref": "#/components/responses/MethodNotAllowed" },
+          "429": { "$ref": "#/components/responses/RateLimited" },
+          "503": { "$ref": "#/components/responses/ServiceUnavailable" }
+        }
+      }
+    },
+    "/v1/search": {
+      "get": {
+        "operationId": "searchEmoji",
+        "summary": "Search ranked emoji results",
+        "description": "Combines exact, keyword and semantic matches. Ordering uses reciprocal-rank fusion (RRF) score, not confidence. Confidence is 1 for an exact ID; otherwise it is cosine similarity clamped to 0–1 if the candidate has a semantic match, or null for keyword-only candidates. It is NOT a calibrated probability. Keyword mode does not call AI. Hybrid mode falls back to keyword search when semantic search is unavailable, including an empty vector index.",
+        "parameters": [
+          { "$ref": "#/components/parameters/Query" },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum number of results.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 12
+            }
+          },
+          {
+            "name": "mode",
+            "in": "query",
+            "description": "Hybrid ranking by default; keyword mode skips AI.",
+            "schema": {
+              "type": "string",
+              "enum": ["hybrid", "keyword"],
+              "default": "hybrid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ranked results. An empty results array means no matches.",
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "$ref": "#/components/headers/Cors"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SearchResponse" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/InvalidRequest" },
+          "405": { "$ref": "#/components/responses/MethodNotAllowed" },
+          "429": { "$ref": "#/components/responses/RateLimited" },
+          "503": { "$ref": "#/components/responses/ServiceUnavailable" }
+        }
+      }
+    }
+  },
+  "components": {
+    "parameters": {
+      "Query": {
+        "name": "q",
+        "in": "query",
+        "required": true,
+        "description": "Emoji name, shortcode or natural-language description. Trimmed before validation; must contain 1–300 characters after trimming.",
+        "schema": { "type": "string", "minLength": 1, "maxLength": 300 },
+        "example": "party-parrot"
+      }
+    },
+    "headers": {
+      "Cors": {
+        "description": "Public search is readable from any origin.",
+        "schema": { "type": "string", "enum": ["*"] }
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "required": ["error"],
+        "properties": { "error": { "type": "string" } }
+      },
+      "SearchResult": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "shortcode",
+          "canonicalName",
+          "imageUrl",
+          "summary",
+          "description",
+          "score",
+          "match",
+          "confidence"
+        ],
+        "properties": {
+          "id": { "type": "string", "description": "Emoji identifier." },
+          "name": { "type": "string", "example": "party-parrot" },
+          "shortcode": { "type": "string", "example": ":party-parrot:" },
+          "canonicalName": {
+            "type": "string",
+            "nullable": true,
+            "description": "Canonical emoji name, when available."
+          },
+          "imageUrl": { "type": "string", "nullable": true },
+          "summary": { "type": "string" },
+          "description": { "type": "string" },
+          "score": {
+            "type": "number",
+            "description": "Ranking score (RRF), not a probability or confidence."
+          },
+          "match": {
+            "type": "string",
+            "enum": ["exact", "keyword", "semantic"]
+          },
+          "confidence": {
+            "type": "number",
+            "nullable": true,
+            "minimum": 0,
+            "maximum": 1,
+            "description": "1 for an exact ID; otherwise clamped cosine similarity when this candidate has a semantic match, or null for keyword-only candidates. Not a calibrated probability. Results are ordered by score, not confidence."
+          }
+        }
+      },
+      "SearchResponse": {
+        "type": "object",
+        "required": ["results", "mode", "durationMs", "semanticAvailable"],
+        "properties": {
+          "results": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/SearchResult" }
+          },
+          "mode": { "type": "string", "enum": ["hybrid", "keyword"] },
+          "durationMs": {
+            "type": "number",
+            "description": "Server-measured search duration in milliseconds; not a latency guarantee."
+          },
+          "semanticAvailable": {
+            "type": "boolean",
+            "description": "Whether semantic search was available for this request. An empty vector index is unavailable; true does not imply the embedding backlog is empty."
+          },
+          "degraded": {
+            "type": "string",
+            "enum": ["semantic_unavailable"],
+            "description": "Present when hybrid search falls back because semantic search is unavailable."
+          }
+        }
+      }
+    },
+    "responses": {
+      "InvalidRequest": {
+        "description": "Invalid query parameters.",
+        "headers": {
+          "Access-Control-Allow-Origin": { "$ref": "#/components/headers/Cors" }
+        },
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/Error" },
+            "example": { "error": "invalid_request" }
+          }
+        }
+      },
+      "MethodNotAllowed": {
+        "description": "Wrong HTTP method. Use GET for search.",
+        "headers": {
+          "Access-Control-Allow-Origin": { "$ref": "#/components/headers/Cors" }
+        }
+      },
+      "RateLimited": {
+        "description": "Best-effort limit exceeded: 60 requests per minute per IP per Cloudflare location. Not a global budget guarantee. Retry after 60 seconds.",
+        "headers": {
+          "Access-Control-Allow-Origin": {
+            "$ref": "#/components/headers/Cors"
+          },
+          "Retry-After": {
+            "description": "Seconds to wait before retrying.",
+            "schema": { "type": "integer", "enum": [60] }
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/Error" },
+            "example": { "error": "rate_limited" }
+          }
+        }
+      },
+      "ServiceUnavailable": {
+        "description": "Search is temporarily unavailable.",
+        "headers": {
+          "Access-Control-Allow-Origin": { "$ref": "#/components/headers/Cors" }
+        },
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/Error" },
+            "example": { "error": "service_unavailable" }
+          }
+        }
+      }
+    }
+  }
+}

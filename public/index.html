@@ -1,0 +1,181 @@
+<!-- biome-ignore-all lint/a11y/noNoninteractiveTabindex: The overflow table region must be focusable for keyboard scrolling. -->
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="referrer" content="no-referrer">
+    <title>semoji dashboard</title>
+    <link rel="stylesheet" href="/styles.css">
+    <script type="module" src="/app.js"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#search-input">Skip to search</a>
+    <header class="masthead">
+      <h1>semoji</h1>
+      <span class="workspace">Hack Club Slack</span>
+      <span class="read-only">Read-only</span>
+      <a href="https://emojis.raygen.dev/docs">API docs</a>
+    </header>
+    <main>
+      <section id="login" class="login" aria-labelledby="login-title" hidden>
+        <h2 id="login-title">Connect to indexing status</h2>
+        <p id="token-help">
+          Search is public and needs no token. Enter your read token only for
+          indexing status. It stays in this tab’s memory and is cleared when
+          you reload.
+        </p>
+        <form id="login-form">
+          <label for="token">Read token</label>
+          <div class="form-row">
+            <input
+              id="token"
+              type="password"
+              autocomplete="off"
+              spellcheck="false"
+              required
+              aria-describedby="token-help"
+            >
+            <button type="submit">Connect</button>
+          </div>
+        </form>
+      </section>
+      <section aria-labelledby="progress-title">
+        <div class="section-heading">
+          <h2 id="progress-title">Indexing</h2>
+          <span id="index-state" class="state">Connecting</span>
+        </div>
+        <p id="connection-error" class="error" role="status" hidden></p>
+        <p id="index-reason" class="notice" hidden></p>
+        <dl class="ledger" aria-label="Index counts">
+          <div>
+            <dt>Total</dt>
+            <dd id="count-total">—</dd>
+          </div>
+          <div>
+            <dt>Pending</dt>
+            <dd id="count-pending">—</dd>
+          </div>
+          <div>
+            <dt>Running</dt>
+            <dd id="count-running">—</dd>
+          </div>
+          <div class="completed">
+            <dt>Completed</dt>
+            <dd id="count-completed">—</dd>
+          </div>
+          <div>
+            <dt>Failed</dt>
+            <dd id="count-failed">—</dd>
+          </div>
+          <div>
+            <dt>Unknown</dt>
+            <dd id="count-unknown">—</dd>
+          </div>
+          <div>
+            <dt>Aliases</dt>
+            <dd id="count-aliases">—</dd>
+          </div>
+        </dl>
+        <dl class="runtime">
+          <div>
+            <dt>Concurrency / target</dt>
+            <dd id="concurrency">—</dd>
+          </div>
+          <div>
+            <dt>Completed / minute</dt>
+            <dd id="throughput">—</dd>
+          </div>
+          <div>
+            <dt>Estimated time left</dt>
+            <dd
+              id="eta"
+              title="Pending and running work at the last minute’s completion rate. Excludes aliases and jobs needing manual retry."
+            >—</dd>
+          </div>
+          <div>
+            <dt>Available memory</dt>
+            <dd id="memory">—</dd>
+          </div>
+          <div>
+            <dt>Source</dt>
+            <dd id="mode">—</dd>
+          </div>
+        </dl>
+        <div class="freshness">
+          <span
+            >Index updated
+            <time id="index-updated">not yet received</time></span
+          >
+          <span
+            >Last successful refresh
+            <time id="last-success">not yet connected</time>
+            · polls every 3 seconds</span
+          >
+        </div>
+      </section>
+      <section class="search-section" aria-labelledby="search-title">
+        <h2 id="search-title">Find an emoji</h2>
+        <search>
+          <form id="search-form">
+            <label for="search-input"
+              >Search by name, appearance, emotion or meaning</label
+            >
+            <div class="form-row">
+              <input
+                id="search-input"
+                type="search"
+                maxlength="300"
+                placeholder="Try “celebration” or “cat waving”"
+                required
+              >
+              <button type="submit">Search</button>
+            </div>
+          </form>
+        </search>
+        <p id="search-message" class="search-message" role="status">
+          Search the indexed library. Up to 20 matches per search.
+        </p>
+        <ul
+          id="search-results"
+          class="results"
+          aria-label="Search results"
+        ></ul>
+      </section>
+      <section aria-labelledby="recent-title">
+        <div class="section-heading">
+          <h2 id="recent-title">Recent activity</h2>
+          <span class="muted">Latest reported items</span>
+        </div>
+        <section
+          class="table-scroll"
+          aria-label="Recent emoji activity"
+          tabindex="0"
+        >
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Emoji</th>
+                <th scope="col">State</th>
+                <th scope="col">Summary / error code</th>
+              </tr>
+            </thead>
+            <tbody id="recent-items">
+              <tr>
+                <td colspan="3" class="empty">Waiting for index status.</td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+      </section>
+    </main>
+    <footer>
+      Descriptions are model-generated interpretations. Expand a search result
+      to read the full description.
+    </footer>
+    <noscript
+      >This dashboard needs JavaScript to retrieve status and search the
+      library.</noscript
+    >
+  </body>
+</html>

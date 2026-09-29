@@ -1,0 +1,42 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "raygen-emojis",
+  "account_id": "2fa4104b17af8808577f12883fa657b1",
+  "main": "src/worker/index.ts",
+  "compatibility_date": "2026-09-28",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
+  "routes": [{ "pattern": "emojis.raygen.dev", "custom_domain": true }],
+  "build": { "command": "pnpm build:docs" },
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "html_handling": "none",
+    "run_worker_first": true
+  },
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      "id": "3beede7e02d74dfabbdbe8e21b049221"
+    }
+  ],
+  "ai": { "binding": "AI" },
+  "ratelimits": [
+    {
+      "name": "SEARCH_LIMITER",
+      "namespace_id": "2026092901",
+      "simple": { "limit": 60, "period": 60 }
+    }
+  ],
+  "secrets": {
+    "required": [
+      "READ_TOKEN",
+      "INDEXER_TOKEN",
+      "ADMIN_TOKEN",
+      "SLACK_BOT_TOKEN",
+      "SLACK_SIGNING_SECRET"
+    ]
+  },
+  "triggers": { "crons": [] },
+  "observability": { "enabled": false }
+}
