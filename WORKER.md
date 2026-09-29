@@ -16,18 +16,18 @@ substituting this repository root for `tools/emojis`.
 
 ## Credentials and API
 
-Search, API docs and the static dashboard shell are public. Read, indexer and admin tokens
+Search, API docs and the static search page are public. Read, indexer and admin tokens
 must be distinct random **32–512 character** values. Store them as secrets, never
-in URLs, model arguments, logs or Git. The dashboard keeps its read token only
-in memory for indexing status, never sends it on search requests, and can search
-without signing in. June's compatibility search no longer requires a read token.
+in URLs, model arguments, logs or Git. The public page never handles credentials
+or polls status. June's compatibility search no longer requires a read token.
 
-`/` and `/docs` serve stock Swagger UI; `/dashboard` serves the index dashboard.
+`/` serves the dark-only search page; `/dashboard` is its compatibility alias.
+`/docs` serves dark-only Scalar.
 Run `pnpm build:docs` through Wrangler's build command before serving/deploying:
-it copies pinned Swagger UI 5.33.0 assets and license notices to ignored
-`public/vendor/`. The external `/docs-init.js` initializer avoids inline scripts;
-there is no CDN, online validator, persisted authorization or query-string config.
-Only public GET operations appear in `/openapi.json` or Swagger Try it out.
+it copies the pinned Scalar 1.72.2 browser bundle and license to ignored
+`public/vendor/`. The external `/docs-init.js` initializer avoids inline scripts.
+No CDN, external fonts, Agent, telemetry, credential persistence or proxy is used.
+Only public GET operations appear in `/openapi.json` or the interactive reference.
 
 For protected APIs, send JSON for POST bodies and `Authorization: Bearer <role token>`. API responses
 are `no-store`. Wrong role: 401; invalid input: 400; obsolete lease: 409; storage
@@ -66,7 +66,10 @@ search and pgvector cosine search combine using reciprocal-rank fusion; exact
 shortcodes rank first. Query embeddings get a 150 ms wait budget and a one-hour
 private hashed-key cache. Slow/unavailable AI yields keyword results with
 `semanticAvailable:false` and `degraded:"semantic_unavailable"`. Explicit keyword
-mode does not call AI. An empty vector index is unavailable; available semantic
+mode does not call AI. Explicit semantic mode waits up to 1.5 seconds for the
+query embedding, ranks only vector matches without exact-name boosting, and
+returns 503 `semantic_unavailable` rather than falling back to keywords.
+An empty vector index is unavailable; available semantic
 search does not mean the embedding backlog is empty. Database/network time is
 additional, with no promised response latency. Versioned results include
 confidence: 1 for an exact ID, otherwise clamped cosine similarity 0–1 when a
@@ -80,7 +83,7 @@ after AI returns. No catalogue results are cached; disable Hyperdrive query cach
 `.github/workflows/emoji-maintenance.yml` runs every 15 minutes or by manual
 dispatch, serialized by concurrency group. GitHub may delay scheduled runs. It
 is guarded to `lordbagel42/semoji` and runs from the repository root. The old
-agent repository workflow stays disabled pending removal; do not enable both.
+agent repository workflow has been removed; do not recreate competing maintenance.
 The schedule, concurrency, gate and secret names are unchanged. It requires
 repository variable `EMOJI_MAINTENANCE_ENABLED=true` and secrets:
 

@@ -3,7 +3,7 @@
   "info": {
     "title": "semoji",
     "version": "1.0.0",
-    "description": "Find Hack Club Slack emoji by name, appearance, emotion or meaning. Public, read-only search: no token required. [Dashboard](/dashboard) · [Source and setup](https://github.com/lordbagel42/semoji). All public search responses include Access-Control-Allow-Origin: *. Rate limiting is best-effort: 60 requests per minute per IP per Cloudflare location, not a globally coordinated budget. Slow AI has a 150 ms wait budget; database and network time are additional, so no response latency is promised. An empty vector index is unavailable; a partial embedding backlog may remain even when semantic search is available."
+    "description": "Find Hack Club Slack emoji by name, appearance, emotion or meaning. Public, read-only search: no token required. [Search](/) · [Source](https://github.com/lordbagel42/semoji). CORS is enabled for all origins. Rate limiting is best-effort: 60 requests/minute/IP/Cloudflare location, not a global budget. Hybrid search waits up to 150 ms for a query embedding; explicit semantic search waits up to 1.5 seconds. Database/network time is additional. Semantic coverage may be incomplete while embeddings are backfilled."
   },
   "servers": [{ "url": "/", "description": "This semoji instance" }],
   "security": [],
@@ -12,8 +12,11 @@
       "get": {
         "operationId": "findEmoji",
         "summary": "Get one Slack emoji name",
-        "description": "Returns one plain-text Slack emoji name without colons. Exact names or shortcodes use one database lookup without AI; otherwise keyword/semantic ranking selects a result.",
-        "parameters": [{ "$ref": "#/components/parameters/Query" }],
+        "description": "Returns one plain-text Slack emoji name without colons. In hybrid or keyword mode, exact names or shortcodes use one database lookup without AI; otherwise the chosen search mode ranks candidates.",
+        "parameters": [
+          { "$ref": "#/components/parameters/Query" },
+          { "$ref": "#/components/parameters/Mode" }
+        ],
         "responses": {
           "200": {
             "description": "One emoji name, without surrounding colons.",
@@ -54,7 +57,7 @@
       "get": {
         "operationId": "searchEmoji",
         "summary": "Search ranked emoji results",
-        "description": "Combines exact, keyword and semantic matches. Ordering uses reciprocal-rank fusion (RRF) score, not confidence. Confidence is 1 for an exact ID; otherwise it is cosine similarity clamped to 0–1 if the candidate has a semantic match, or null for keyword-only candidates. It is NOT a calibrated probability. Keyword mode does not call AI. Hybrid mode falls back to keyword search when semantic search is unavailable, including an empty vector index.",
+        "description": "Hybrid mode combines exact, keyword and semantic matches using reciprocal-rank fusion (RRF). Keyword mode skips AI. Semantic mode ranks only by vector similarity, without exact-name boosting or keyword fallback; it returns 503 semantic_unavailable if AI or the vector index is unavailable. Confidence is 1 for an exact ID, otherwise cosine similarity clamped to 0–1 for semantic matches or null for keyword-only candidates. It is not a calibrated probability.",
         "parameters": [
           { "$ref": "#/components/parameters/Query" },
           {
@@ -68,16 +71,7 @@
               "default": 12
             }
           },
-          {
-            "name": "mode",
-            "in": "query",
-            "description": "Hybrid ranking by default; keyword mode skips AI.",
-            "schema": {
-              "type": "string",
-              "enum": ["hybrid", "keyword"],
-              "default": "hybrid"
-            }
-          }
+          { "$ref": "#/components/parameters/Mode" }
         ],
         "responses": {
           "200": {
@@ -103,6 +97,16 @@
   },
   "components": {
     "parameters": {
+      "Mode": {
+        "name": "mode",
+        "in": "query",
+        "description": "Hybrid combines names and meaning with keyword fallback. Keyword skips AI. Semantic uses meaning only and reports unavailability instead of falling back.",
+        "schema": {
+          "type": "string",
+          "enum": ["hybrid", "keyword", "semantic"],
+          "default": "hybrid"
+        }
+      },
       "Query": {
         "name": "q",
         "in": "query",
@@ -175,7 +179,10 @@
             "type": "array",
             "items": { "$ref": "#/components/schemas/SearchResult" }
           },
-          "mode": { "type": "string", "enum": ["hybrid", "keyword"] },
+          "mode": {
+            "type": "string",
+            "enum": ["hybrid", "keyword", "semantic"]
+          },
           "durationMs": {
             "type": "number",
             "description": "Server-measured search duration in milliseconds; not a latency guarantee."
@@ -230,7 +237,7 @@
         }
       },
       "ServiceUnavailable": {
-        "description": "Search is temporarily unavailable.",
+        "description": "Search is temporarily unavailable. The error is semantic_unavailable when explicit semantic mode cannot get query embeddings or the vector index is empty; otherwise service_unavailable.",
         "headers": {
           "Access-Control-Allow-Origin": { "$ref": "#/components/headers/Cors" }
         },

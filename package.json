@@ -29,9 +29,9 @@
   "devDependencies": {
     "@biomejs/biome": "2.5.14",
     "@cloudflare/workers-types": "latest",
+    "@scalar/api-reference": "1.72.2",
     "@types/node": "^24.0.0",
     "@types/pg": "^8.23.1",
-    "swagger-ui-dist": "5.33.0",
     "tsx": "4.23.15",
     "typescript": "5.9.3",
     "wrangler": "latest"

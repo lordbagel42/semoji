@@ -16,17 +16,18 @@ API docs need no token; indexing status and writes require authentication. Alias
 animations and uncertain interpretations must be handled explicitly.
 
 ## Public API and docs
-Stock, self-hosted Swagger UI at `/` and `/docs`; dashboard at `/dashboard`.
+Simple dark-only search page at `/`; self-hosted Scalar at `/docs`.
 `/v1/emoji` returns one Slack name without colons, using one database lookup and
 no AI for exact names/shortcodes. `/v1/search` returns ranked results with nullable
 semantic confidence, not a calibrated probability. RRF score determines ordering.
 The anonymous `/api/search` endpoint preserves June compatibility. Public search
 has CORS `*` and a best-effort 60 requests/minute/IP/location limit, not a global
-budget guarantee. Semantic search can degrade to keyword search, including when
-the vector index is empty; available semantics do not prove a complete backlog.
+budget guarantee. Hybrid search can degrade to keyword search. Explicit semantic
+mode uses vector similarity only and returns an unavailable error if needed;
+available semantics do not prove a complete backlog.
 The existing Worker/domain and Neon production storage remain unchanged.
 
-## Dashboard scope
-Show actual progress, rate, resource pressure, failures and recent descriptions.
-No invented statistics. Local preview is read-only. Plain static HTML/CSS/JS is
-an implementation choice to share the surface between Node and Workers.
+## Search page scope
+One search box, Keyword / Semantic selection, and the top ten results. Dark mode
+only. No public monitoring dashboard or login form. Protected status and writes
+remain API operations. Plain static HTML/CSS/JS keeps the page small.

@@ -378,13 +378,26 @@ test("Postgres: role boundaries, lease fencing, idempotency, alias/removal and s
         [JSON.stringify([x, y, ...Array(382).fill(0)]), name],
       );
     const semanticHits = await (
-      await request("/v1/search?q=unrelated&limit=1")
-    ).json<{ results: { id: string; confidence: number }[] }>();
+      await request("/v1/search?q=kitty&limit=1&mode=semantic")
+    ).json<{ mode: string; results: { id: string; confidence: number }[] }>();
+    assert.equal(semanticHits.mode, "semantic");
     assert.equal(semanticHits.results.length, 1);
+    // Semantic similarity must outrank the competing exact keyword "kitty".
     assert.equal(semanticHits.results[0]?.id, "cat");
     assert.ok(
       Math.abs((semanticHits.results[0]?.confidence ?? 0) - 0.8) < 0.001,
     );
+    failAI = true;
+    const unavailable = await request("/v1/search?q=kitty&mode=semantic");
+    assert.equal(unavailable.status, 503);
+    assert.deepEqual(await unavailable.json(), {
+      error: "semantic_unavailable",
+    });
+    const beforeKeyword = aiCalls;
+    const keywordOnly = await request("/v1/search?q=kitty&mode=keyword");
+    assert.equal(keywordOnly.status, 200);
+    assert.equal(aiCalls, beforeKeyword);
+    failAI = false;
     search = await (
       await request("/api/search?q=cheerful", env.READ_TOKEN)
     ).json<SearchResponse>();

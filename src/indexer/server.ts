@@ -22,10 +22,21 @@ export function serveDashboard(store: Store, port: number) {
   app.get("/api/search", (c) => {
     const started = performance.now();
     const query = c.req.query("q")?.trim() ?? "";
-    if (!query || query.length > 300)
+    const limit = Number(c.req.query("limit") ?? 20);
+    const mode = c.req.query("mode") ?? "keyword";
+    if (
+      !query ||
+      query.length > 300 ||
+      !Number.isInteger(limit) ||
+      limit < 1 ||
+      limit > 50 ||
+      !["keyword", "hybrid", "semantic"].includes(mode)
+    )
       return c.json({ error: "invalid_query" }, 400);
+    if (mode === "semantic")
+      return c.json({ error: "semantic_unavailable" }, 503);
     return c.json({
-      results: store.search(query),
+      results: store.search(query, limit),
       mode: "keyword",
       semanticAvailable: false,
       durationMs: performance.now() - started,

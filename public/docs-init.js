@@ -1,9 +1,12 @@
-window.SwaggerUIBundle({
+window.Scalar.createApiReference("#scalar-docs", {
   url: "/openapi.json",
-  dom_id: "#swagger-ui",
-  deepLinking: true,
-  validatorUrl: null,
-  queryConfigEnabled: false,
-  persistAuthorization: false,
-  supportedSubmitMethods: ["get"],
+  darkMode: true,
+  forceDarkModeState: "dark",
+  hideDarkModeToggle: true,
+  withDefaultFonts: false,
+  telemetry: false,
+  persistAuth: false,
+  agent: { disabled: true },
+  showDeveloperTools: "never",
+  documentDownloadType: "json",
 });

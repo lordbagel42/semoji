@@ -171,6 +171,7 @@ async function semanticQuery(
   request: Request,
   env: Env,
   q: string,
+  waitMs: number,
   ctx?: Pick<ExecutionContext, "waitUntil">,
 ) {
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -205,7 +206,7 @@ async function semanticQuery(
     return await Promise.race([
       work,
       new Promise<null>((resolve) => {
-        timer = setTimeout(() => resolve(null), 150);
+        timer = setTimeout(() => resolve(null), waitMs);
       }),
     ]);
   } finally {
@@ -229,11 +230,11 @@ async function search(
     .parse(url.searchParams.get("limit") ?? 12);
   const limit = single ? 1 : requestedLimit;
   const mode = z
-    .enum(["hybrid", "keyword"])
+    .enum(["hybrid", "keyword", "semantic"])
     .parse(url.searchParams.get("mode") ?? "hybrid");
   const exact = q.replace(/^:|:$/g, "");
   // One indexed lookup, no descriptions or AI, for the latency-critical route.
-  if (single) {
+  if (single && mode !== "semantic") {
     const found = await sql(
       env,
       "SELECT name FROM search_documents WHERE name=$1",
@@ -248,22 +249,25 @@ async function search(
       });
   }
   const semantic =
-    mode === "hybrid"
-      ? semanticQuery(request, env, q, ctx)
+    mode !== "keyword"
+      ? semanticQuery(request, env, q, mode === "semantic" ? 1500 : 150, ctx)
       : Promise.resolve(null);
   const query = (q.normalize("NFKC").match(/[\p{L}\p{N}]+/gu) ?? [])
     .slice(0, 12)
     .map((term) => `'${term}':*`)
     .join(" | ");
   // Rank compact keys first. Only retrieve full JSON for returned results.
-  const keyword = await sql(
-    env,
-    `SELECT name,vector_id FROM search_documents
+  const keyword =
+    mode === "semantic"
+      ? { results: [] }
+      : await sql(
+          env,
+          `SELECT name,vector_id FROM search_documents
     WHERE name=$2 OR search_vector @@ to_tsquery('simple',$1)
     ORDER BY (name=$2) DESC,ts_rank_cd(search_vector,to_tsquery('simple',$1)) DESC,name LIMIT 50`,
-    query,
-    exact,
-  ).all<{ name: string; vector_id: string }>();
+          query,
+          exact,
+        ).all<{ name: string; vector_id: string }>();
   const ranked = new Map<
     string,
     { score: number; match: SearchHit["match"]; confidence: number | null }
@@ -277,7 +281,7 @@ async function search(
     });
   });
   let semanticAvailable = false;
-  if (mode === "hybrid")
+  if (mode !== "keyword")
     try {
       const vector = await semantic;
       if (!vector) throw new Error("semantic_unavailable");
@@ -300,8 +304,10 @@ async function search(
       // An empty vector index is not working semantic search.
       semanticAvailable = matches.length > 0;
     } catch {
-      /* Deliberate keyword fallback; never leak provider errors. */
+      /* Hybrid permits keyword fallback; semantic-only fails explicitly below. */
     }
+  if (mode === "semantic" && !semanticAvailable)
+    throw new HttpError(503, "semantic_unavailable");
   // Revalidate even keyword candidates after the asynchronous provider call.
   const ids = [...ranked.entries()]
     .sort((a, b) => b[1].score - a[1].score || a[0].localeCompare(b[0]))
@@ -343,7 +349,7 @@ async function search(
           : {}),
       };
     }),
-    mode: semanticAvailable ? "hybrid" : "keyword",
+    mode: semanticAvailable ? mode : "keyword",
     durationMs: Math.round(performance.now() - started),
     semanticAvailable,
     ...(mode === "hybrid" && !semanticAvailable
@@ -456,8 +462,7 @@ async function route(
         "/docs.css",
         "/docs-init.js",
         "/openapi.json",
-        "/vendor/swagger-ui-bundle.js",
-        "/vendor/swagger-ui.css",
+        "/vendor/scalar.js",
         "/dashboard",
         "/app.js",
         "/style.css",
@@ -466,12 +471,11 @@ async function route(
       ].includes(path)
     )
       throw new HttpError(404, "not_found");
-    const docs = ["/", "/index.html", "/docs", "/docs/", "/docs.html"].includes(
-      path,
-    );
+    const docs = ["/docs", "/docs/", "/docs.html"].includes(path);
     const assetUrl = new URL(request.url);
     if (docs) assetUrl.pathname = "/docs.html";
-    if (path === "/dashboard") assetUrl.pathname = "/index.html";
+    if (path === "/" || path === "/dashboard")
+      assetUrl.pathname = "/index.html";
     const response = await env.ASSETS.fetch(new Request(assetUrl, request));
     const headers = new Headers(response.headers);
     for (const [k, v] of Object.entries(securityHeaders)) headers.set(k, v);
