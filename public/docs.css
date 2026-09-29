@@ -1,0 +1,16 @@
+@media (max-width: 600px) {
+  .swagger-ui .responses-inner {
+    overflow-x: auto;
+  }
+
+  .swagger-ui .responses-inner::before {
+    content: "Scroll horizontally for all response details →";
+    display: block;
+    margin-bottom: 12px;
+    font-size: 12px;
+  }
+
+  .swagger-ui .responses-inner > .responses-table {
+    min-width: 540px;
+  }
+}

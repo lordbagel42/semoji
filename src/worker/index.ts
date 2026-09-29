@@ -453,6 +453,7 @@ async function route(
         "/docs",
         "/docs/",
         "/docs.html",
+        "/docs.css",
         "/docs-init.js",
         "/openapi.json",
         "/vendor/swagger-ui-bundle.js",
