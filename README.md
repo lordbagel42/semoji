@@ -1,5 +1,8 @@
 # semoji
 
+> [!WARNING]
+> **Under maintenance.** semoji is partly broken right now: many emoji still show "Not yet analyzed" and search quality is uneven while the catalogue is being fixed. The API stays up, but expect gaps.
+
 Public, read-only search for Hack Club Slack emoji. No API key required.
 
 ```sh
